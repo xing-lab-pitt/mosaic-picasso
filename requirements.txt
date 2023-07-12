@@ -1,0 +1,6 @@
+joblib
+numpy
+scipy
+tifffile
+skimage
+napari[all]

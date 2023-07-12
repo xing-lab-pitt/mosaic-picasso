@@ -7,14 +7,11 @@ from scipy.optimize import minimize
 from scipy.stats import entropy
 import torchvision.transforms.functional as TF
 from joblib import Parallel, delayed
-import utility as UTILITY
+import mosaic_picasso.utils as utils
 
 
-class MOSAIC:
-    def __init__(self):
-        pass
-
-    def set_parameters(self, bins=256, beta=0.0, gamma=0.1, cycles=40, subunit_sz=40, stride=40, nch=3):
+class MosaicPicasso:
+    def __init__(self, bins=256, beta=0.0, gamma=0.1, cycles=40, subunit_sz=40, stride=40, nch=3):
         self.bins = bins
         self.beta = beta
         self.gamma = gamma
@@ -41,7 +38,7 @@ class MOSAIC:
         im1 = chopedImg[0, :, :, :].copy()
         im2 = chopedImg[1, :, :, :].copy()
         # ms, pp, ss = [], [], []
-        ss = np.array([UTILITY.calculate_ssim(im1[i], im2[i]) for i in range(im1.shape[0])])
+        ss = np.array([utils.calculate_ssim(im1[i], im2[i]) for i in range(im1.shape[0])])
         return ss
 
     def normalized_mutual_info_score(self, img1, img2):

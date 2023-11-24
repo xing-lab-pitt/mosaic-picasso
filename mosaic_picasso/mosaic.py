@@ -11,7 +11,7 @@ import mosaic_picasso.utils as utils
 
 
 class MosaicPicasso:
-    def __init__(self, bins=256, beta=0.0, gamma=0.1, cycles=40, subunit_sz=40, stride=40, nch=3):
+    def __init__(self, bins=256, beta=0.0, gamma=0.1, cycles=40, subunit_sz=40, stride=40, nch=3, threshold=1, mode='ssim'):
         self.bins = bins
         self.beta = beta
         self.gamma = gamma
@@ -19,6 +19,11 @@ class MosaicPicasso:
         self.subunit_sz = 40
         self.stride = 40
         self.nch = nch
+
+        # user defined threshold
+        self.th = threshold  
+        # user defined mode
+        self.mode = mode  
 
     # chop
     def create_chopedImg(self, img):
@@ -34,13 +39,6 @@ class MosaicPicasso:
             coordinates.append(coords)
         return np.array(chopedImg), coordinates[0]
 
-    def cal_MI(self, chopedImg):
-        im1 = chopedImg[0, :, :, :].copy()
-        im2 = chopedImg[1, :, :, :].copy()
-        # ms, pp, ss = [], [], []
-        ss = np.array([utils.calculate_ssim(im1[i], im2[i]) for i in range(im1.shape[0])])
-        return ss
-
     def normalized_mutual_info_score(self, img1, img2):
         hist, _, _ = np.histogram2d(img1.ravel(), img2.ravel(), bins=self.bins)
         hist /= np.sum(hist)  # Normalize the histogram
@@ -49,13 +47,27 @@ class MosaicPicasso:
         joint_entropy = -np.sum(hist * np.log(hist + (hist == 0)))
         return (entropy1 + entropy2 - joint_entropy) / np.maximum(entropy1, entropy2)
 
+
+    def cal_MI(self, chopedImg, mode='ssim'):
+        im1 = chopedImg[0, :, :, :].copy()
+        im2 = chopedImg[1, :, :, :].copy()
+        # ms, pp, ss = [], [], []
+        if mode == 'ssim':
+            ss = np.array([utils.calculate_ssim(im1[i], im2[i]) for i in range(im1.shape[0])])
+        elif mode == 'pearson':
+            ss = np.array([utils.calculate_pearson_correlation(im1[i], im2[i]) for i in range(im1.shape[0])])
+        else: # using mutual information
+            ss = np.array([self.normalized_mutual_info_score(im1[i], im2[i]) for i in range(im1.shape[0])])
+        return ss
+
+
     def cal_ij(self, X, i, j):  # mosaic
         # chop
         X2 = X[:, :, [i, j]].copy()  # convert into pair
         X2_chop, _ = self.create_chopedImg(X2)
-        ssim = self.cal_MI(X2_chop)
+        ssim = self.cal_MI(X2_chop, mode=self.mode)
 
-        th = np.percentile(ssim, 1)
+        th = np.percentile(ssim, self.th)
         X2_chop_low = X2_chop[:, ssim <= th].copy()
         Y = X2_chop_low.reshape(2, -1, self.subunit_sz).transpose((1, 2, 0))
 
